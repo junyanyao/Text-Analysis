@@ -9,9 +9,9 @@ Research question: Whether chat engagement is associated with test outcomes(see 
 
 Data: Chat data and test outcome data
 
-```{r}
 
-#load the chat data
+#load and subset the chat data
+```{r}
 data<- read.csv("~/Documents/NYU/Fall 2017/Text Analysis Project/cpsv_text_project/chat_time_series.csv")
 
 data<- data[,c(2,5,8)] #extract needed column
@@ -73,7 +73,10 @@ term_stats(chatdata$content,ngrams = 5)
 
 ```
 
-here are hte problems
+here are the problems:
+
+the sparse matrix should be converted to data frame to merge with the outcome data. My thinking is that convert to standard matrix first and then to convert data frame. However. as.matix function makes the sparse matrix even worse to look at.
+
 ```{r}
 
 #convert matrix to data frame
@@ -102,6 +105,8 @@ head(term_score) #while not very informative
 
 
 ```
+
+Data exploration
 
 ```{r}
 #look at the grams from these chat where the first type is "i" or "you/u"
