@@ -1,0 +1,135 @@
+---
+title: "Text Analysis Project"
+author: "Junyan Yao"
+date: "9/25/2017"
+output: pdf_document
+---
+
+Research question: Whether chat engagement is associated with test outcomes(see how students' collaborative performance can be associated with students' performance in these math problems).
+
+Data: Chat data and test outcome data
+
+```{r}
+
+#load the chat data
+data<- read.csv("~/Documents/NYU/Fall 2017/Text Analysis Project/cpsv_text_project/chat_time_series.csv")
+
+data<- data[,c(2,5,8)] #extract needed column
+
+head(data)
+
+#subset the data
+chatdata<- data[which(data$type=="chat"),] #this is what we want to look at
+problemdata<- data[which(data$type=="problem"),]
+
+head(chatdata)
+
+#load the outcome data
+
+outcomedata<-read.csv("~/Documents/NYU/Fall 2017/Text Analysis Project/cpsv_text_project/group_outcomes.csv") #?why negative value in the group id???
+
+head(outcomedata)
+```
+
+
+Tokenize data
+
+```{r}
+
+#load packages
+
+library(corpus)
+library(Matrix)
+library(tm) #data import, corpus handling, preprocessing, metadata management, and creation of term-document matrix
+
+
+#Tokenize chat data (compute the occurrence counts for each term, returning the result as a sparse matrix(text-by-terms), term_counts returns the same information, but in a data frame).
+
+#tabulating a matrix of text-term occurrence counts
+M<- term_matrix(chatdata$content, group = chatdata$group_id) #this is sparse matrix 
+dim(M)
+head(M)
+C<- term_counts(chatdata$content, group = chatdata$group_id) #this is data frame
+dim(C)
+head(C)
+
+
+
+#get the most common non-punctuation, non-stop word terms in the chat
+Y<- term_stats(chatdata$content, drop=stopwords_en, drop_punct=TRUE) #the support is the number of texts containing the term.
+# by using drop= stopwords_en, we can exclude these "functional" words
+head(Y, 10)
+
+S<- subset(Y, Y$support>5)
+
+#probably not drop the "functional" words
+YY<- term_stats(chatdata$content)
+head(YY,10)
+
+#higher-order n-grams
+term_stats(chatdata$content,ngrams = 3)
+term_stats(chatdata$content,ngrams = 4)
+term_stats(chatdata$content,ngrams = 5)
+
+```
+
+here are hte problems
+```{r}
+
+#convert matrix to data frame
+
+summ<- summary(X)
+
+data2<- merge(chatdata,X,by.x = "group", by.y=rownames(X))
+
+```
+
+```{r}
+#Emotion-Lexicon
+affect<- subset(affect_wordnet,emotion != "Neutral")
+affect$emotion<- droplevels(affect$emotion) #drop the unused neutral level
+affect$category<- droplevels(affect$category) #drop unused categories
+
+term_stats(chatdata$content, subset = term %in% affect$term)
+
+text_sample(chatdata$content,"hard")
+
+#term emotion matrix
+#segment the text into smaller chunks and then compute the emotion occurence rates in each chunk, broken down by category ("positive","negative","ambiguous")
+
+term_score<- with(affect, unclass(table(term,emotion))) 
+head(term_score) #while not very informative
+
+
+```
+
+```{r}
+#look at the grams from these chat where the first type is "i" or "you/u"
+
+gram_counts_i<- term_stats(chatdata$content, ngrams = 3, types = TRUE, subset = type1 %in% "i")
+
+
+gram_counts_you<- term_stats(chatdata$content, ngrams = 3, types = TRUE, subset = type1 %in% "you")
+
+
+gram_counts_u<- term_stats(chatdata$content, ngrams = 3, types = TRUE, subset = type1 %in% "u")
+
+#another way
+pronouns<- c("i","you")
+bigram_counts_c<- term_stats(chatdata$content,ngrams = 2, types = TRUE, subset = type1 %in% pronouns)
+
+print(bigram_counts_c)
+
+#rearrange the data into tabular form, with one row for each term and two columns
+
+terms<- with(bigram_counts_c,tapply(count, list(type2, type1), identity)) #this is not informative
+print(terms)
+#gender-specific usage rates
+
+term<- "think"
+i<- match(term, rownames(terms))
+tab<- cbind(terms[i,], colSums(terms[-i,]))
+colnames(tab)<- c(term, paste0("\u00ac",term))
+print(tab)
+
+```
